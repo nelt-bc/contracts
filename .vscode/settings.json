@@ -1,0 +1,16 @@
+{
+    "cSpell.words": [
+        "calldatacopy",
+        "calldatasize",
+        "chainid",
+        "delegatecall",
+        "Initializable",
+        "keccak",
+        "returndatacopy",
+        "returndatasize",
+        "sload",
+        "sstore",
+        "TYPEHASH",
+        "UUPS"
+    ]
+}

@@ -1,24 +1,32 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.23;
+pragma solidity ^0.8.23;
 
 import "./IToken.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 
-contract AA is Ownable {
-    bytes32 public immutable DOMAIN_SEPARATOR;
-    bytes32 public constant PERMIT_TYPEHASH =
-        keccak256(
-            "Permit(address token,address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)"
-        );
-
-    uint256 private immutable _CACHED_CHAIN_ID;
+contract AA is Initializable, UUPSUpgradeable, OwnableUpgradeable {
+    // Constants
     string public constant CONTRACT_NAME = "AA";
-    string public constant CONTRACT_VERSION = "1"; // Can change if use proxy
+    string public constant CONTRACT_VERSION = "1"; // Bump for upgrades
     address public constant NATIVE_TOKEN = address(0);
+    bytes32 public constant PERMIT_TYPEHASH = keccak256(
+        "Permit(address token,address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)"
+    );
 
+    // Domain separator and chainId cache
+    bytes32 public DOMAIN_SEPARATOR;
+    uint256 private _CACHED_CHAIN_ID;
+
+    // State
     mapping(address => uint256) public nonces;
 
-    constructor() Ownable(msg.sender) {
+    function initialize(address _owner) public initializer {
+        __Ownable_init(_owner);
+        __UUPSUpgradeable_init();
+
+        _CACHED_CHAIN_ID = block.chainid;
         DOMAIN_SEPARATOR = keccak256(
             abi.encode(
                 keccak256(
@@ -26,7 +34,7 @@ contract AA is Ownable {
                 ),
                 keccak256(bytes(CONTRACT_NAME)),
                 keccak256(bytes(CONTRACT_VERSION)),
-                block.chainid,
+                _CACHED_CHAIN_ID,
                 address(this)
             )
         );
@@ -66,8 +74,6 @@ contract AA is Ownable {
         bytes32 s
     ) internal {
         require(block.timestamp <= deadline, "Permit expired");
-        require(owner() != address(0), "Invalid owner");
-
         bytes32 digest = keccak256(
             abi.encodePacked(
                 "\x19\x01",
@@ -79,16 +85,18 @@ contract AA is Ownable {
                         owner(),
                         msg.sender,
                         amount,
-                        nonces[owner()]++,
+                        nonces[msg.sender]++,
                         deadline
                     )
                 )
             )
         );
 
-        address recoveredAddress = ecrecover(digest, v, r, s);
-        require(recoveredAddress == owner(), "Invalid signature");
+        address recovered = ecrecover(digest, v, r, s);
+        require(recovered == owner(), "Invalid signature");
     }
+
+    function _authorizeUpgrade(address) internal override onlyOwner {}
 
     receive() external payable {}
 }
